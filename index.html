@@ -119,34 +119,34 @@
 </div>
 
 <script>
-    // --- INTEGRATION SÉCURISÉE DE VOS CLÉS ---
-    const SUPABASE_URL = "https://supabase.co"; 
+    const SUPABASE_URL = "https://slcxfdpojazprtcapxvy.supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsY3hmZHBvamF6cHJ0Y2FweHZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3Njc1NDksImV4cCI6MjEwNDM0MzU0OX0.A2vPONIHwC9I1StbFzh81mKm6N-nlWi4EZXcPS-cFcU";
     
     const CODE_PIN_SECRET = "1234"; 
     let estAutentifie = false;
     let html5QrcodeScanner = null;
-
     let supabase = null;
-    try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        // Changement immédiat du statut si la bibliothèque s'initialise correctement
-        document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById('db-status').innerText = "🟢 Flux Cloud Supabase Synchrone";
-            logSystem("Système prêt et connecté au Cloud.");
-        });
-    } catch(e) {
-        document.addEventListener("DOMContentLoaded", () => {
-            document.getElementById('db-status').innerText = "🔴 Échec de liaison réseau";
-            document.getElementById('db-status').style.backgroundColor = "#fee2e2";
-            document.getElementById('db-status').style.color = "#991b1b";
-        });
-    }
 
     let carteSelectionnee = null;
     let carteActuelleDonnees = null;
     let barcodeBuffer = "";
     let lastKeyTime = Date.now();
+
+    // L'exécution attend que toute la structure graphique soit dessinée (Sécurité anti-bug)
+    window.addEventListener('DOMContentLoaded', () => {
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            document.getElementById('db-status').innerText = "🟢 Flux Cloud Supabase Synchrone";
+            document.getElementById('db-status').style.backgroundColor = "#d1fae5";
+            document.getElementById('db-status').style.color = "#065f46";
+            logSystem("Système connecté au Cloud de manière synchrone.");
+        } catch(e) {
+            document.getElementById('db-status').innerText = "🔴 Échec de liaison réseau";
+            document.getElementById('db-status').style.backgroundColor = "#fee2e2";
+            document.getElementById('db-status').style.color = "#991b1b";
+            logSystem("Erreur fatale : Bibliothèque non atteignable.");
+        }
+    });
 
     // --- SÉCURITÉ CODE PIN ---
     function verifierPIN() {
@@ -157,7 +157,7 @@
             document.getElementById('btn-relock').style.display = "block";
             document.getElementById('btn-csv-report').disabled = false;
             document.getElementById('txt-pin').value = "";
-            logSystem("🔓 Accès caissier autorisé.");
+            logSystem("🔓 Accès autorisé.");
             if(carteSelectionnee) ajusterDroitsInterface();
         } else {
             alert("❌ Code PIN incorrect !");
@@ -176,7 +176,3 @@
 
     // --- INTERCEPTION DE LA DOUCHETTE PC ---
     window.addEventListener('keydown', function(e) {
-        const currentTime = Date.now();
-        if (currentTime - lastKeyTime > 80) barcodeBuffer = ""; 
-        lastKeyTime = currentTime;
-
