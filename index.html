@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caisse Cloud Sécurisée - Code PIN</title>
-    <!-- Bibliothèque officielle Supabase -->
+    <title>Caisse Cloud Sécurisée - Supabase & Caméra</title>
+    <!-- Bibliothèques Officielles : Supabase (Réseau) & Html5-QRCode (Caméra smartphone) -->
     <script src="https://jsdelivr.net"></script>
+    <script src="https://unpkg.com"></script>
     <style>
         :root {
             --bg-color: #f8fafc;
@@ -44,36 +45,45 @@
         .btn-report { background: #0f172a; color: white; width: 100%; margin-top: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .terminal-log { background: #0f172a; color: #38bdf8; font-family: monospace; padding: 15px; border-radius: 8px; text-align: left; max-height: 100px; overflow-y: auto; font-size: 12px; }
         
-        /* Style du panneau PIN */
+        /* Zone Caméra Smartphone */
+        #camera-reader { width: 100%; max-width: 400px; margin: 15px auto; border: 2px dashed #cbd5e1; border-radius: 8px; display: none; overflow: hidden; }
+        .btn-cam { background: #0284c7; color: white; width: 100%; margin: 10px 0; }
         .pin-locked-overlay { background: rgba(248, 250, 252, 0.95); padding: 15px; border-radius: 8px; border: 2px dashed #cbd5e1; margin: 15px 0; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- Statut de flux réseau -->
+    <!-- Statut Cloud -->
     <div class="card">
         <h1>Caisse Mono-Enseigne Sécurisée</h1>
-        <div class="scanner-status" id="db-status">🔄 Liaison réseau Cloud...</div>
-        <div style="font-size: 12px; color: #64748b; font-style: italic;">Sécurité : Authentification PIN obligatoire pour toute transaction.</div>
+        <div class="scanner-status" id="db-status">🔄 Connexion Cloud en cours...</div>
+        <div style="font-size: 12px; color: #64748b; font-style: italic;">Double entrée active : Douchette PC & Caméra Smartphone actives.</div>
     </div>
 
-    <!-- Section Clavier Code PIN de sécurité -->
+    <!-- Sécurité Code PIN -->
     <div class="card" style="border: 1px solid #cbd5e1;">
         <h2>🔑 Autorisation Caissier</h2>
         <div id="pin-zone" class="pin-locked-overlay">
-            <span style="font-size: 14px; font-weight: 500; color: #64748b;">Système verrouillé. Saisissez le code PIN pour opérer :</span>
+            <span style="font-size: 14px; font-weight: 500; color: #64748b;">Système verrouillé. Saisissez le code PIN :</span>
             <input type="password" id="txt-pin" placeholder="••••" maxlength="4" style="letter-spacing: 10px; font-size: 24px; margin: 10px 0;">
             <button class="btn-primary btn-unlocked" onclick="verifierPIN()">🔓 Déverrouiller la Caisse</button>
         </div>
         <button id="btn-relock" class="btn-lock" onclick="verrouillerCaisse()" style="display: none;">🔒 Verrouiller la session</button>
     </div>
 
-    <!-- Fiche éphémère de la carte -->
+    <!-- Lecteur Vidéo Caméra Smartphone -->
+    <div class="card">
+        <h2>📷 Option Scan Mobile</h2>
+        <button class="btn-cam" id="btn-toggle-cam" onclick="toggleCameraSmartphone()">Ouvrir l'appareil photo</button>
+        <div id="camera-reader"></div>
+    </div>
+
+    <!-- Fiche Carte Cadeau -->
     <div class="card">
         <h2>Consultation Carte Cadeau</h2>
         <div class="info-group">
-            <span class="info-label">Code PVC scanné :</span>
+            <span class="info-label">Code PVC détecté :</span>
             <span class="info-value" id="lbl-numero">----------</span>
         </div>
         <div class="info-group">
@@ -82,10 +92,10 @@
         </div>
         <div class="info-group" style="flex-direction: column; align-items: center; padding: 15px 0;">
             <span class="info-label">Solde en Direct</span>
-            <span class="big-solde"><span id="lbl-solde">0.00</span> FCFA</span>
+            <span class="big-solde"><span id="lbl-solde">0</span> FCFA</span>
         </div>
 
-        <input type="number" id="txt-amount" placeholder="Saisir montant (FCFA)" min="1" step="1" disabled>
+        <input type="number" id="txt-amount" placeholder="Montant (FCFA)" min="1" step="1" disabled>
         
         <div class="grid-buttons">
             <button id="btn-activate" class="btn-primary" onclick="actionCarte('ACTIVATE')" disabled>Activer la carte</button>
@@ -95,26 +105,27 @@
         </div>
     </div>
 
-    <!-- Rapports Comptables éphémères -->
+    <!-- Rapports Comptables -->
     <div class="card">
         <h2>Extraction de flux</h2>
         <button id="btn-csv-report" class="btn-report" onclick="exporterRapportCSV()" disabled>📊 Télécharger le Rapport en Direct (CSV)</button>
     </div>
 
+    <!-- Logs Système -->
     <div class="card">
         <h2>Flux d'activité éphémère</h2>
-        <div class="terminal-log" id="system-logs">> Prêt. En attente d'une impulsion de la douchette...</div>
+        <div class="terminal-log" id="system-logs">> Initialisation...</div>
     </div>
 </div>
 
 <script>
-    // --- CONNEXION CONFIGURATION CLOUD ---
-    const SUPABASE_URL = https://slcxfdpojazprtcapxvy.supabase.co; 
-    const SUPABASE_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsY3hmZHBvamF6cHJ0Y2FweHZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3Njc1NDksImV4cCI6MjEwNDM0MzU0OX0.A2vPONIHwC9I1StbFzh81mKm6N-nlWi4EZXcPS-cFcU;
+    // --- INTEGRATION DIRECTE DE VOS CLES SUPABASE ---
+    const SUPABASE_URL = "https://slcxfdpojazprtcapxvy.supabase.co"; 
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsY3hmZHBvamF6cHJ0Y2FweHZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3Njc1NDksImV4cCI6MjEwNDM0MzU0OX0.A2vPONIHwC9I1StbFzh81mKm6N-nlWi4EZXcPS-cFcU";
     
-    // --- CONFIGURATION SÉCURITÉ ---
-    const CODE_PIN_SECRET = "1992"; // 💡 Modifiez ce code par celui de votre choix
+    const CODE_PIN_SECRET = "1234"; 
     let estAutentifie = false;
+    let html5QrcodeScanner = null;
 
     let supabase = null;
     try {
@@ -129,7 +140,7 @@
     let barcodeBuffer = "";
     let lastKeyTime = Date.now();
 
-    // --- SÉCURITÉ : GESTION DU VERROUILLAGE PIN ---
+    // --- SÉCURITÉ CODE PIN ---
     function verifierPIN() {
         const saisie = document.getElementById('txt-pin').value;
         if(saisie === CODE_PIN_SECRET) {
@@ -138,8 +149,8 @@
             document.getElementById('btn-relock').style.display = "block";
             document.getElementById('btn-csv-report').disabled = false;
             document.getElementById('txt-pin').value = "";
-            logSystem("🔓 Caisse déverrouillée par le gestionnaire.");
-            if(carteSelectionnee) ajusterDroitsInterface(); // Rafraîchir les boutons si une carte était déjà scannée
+            logSystem("🔓 Accès autorisé.");
+            if(carteSelectionnee) ajusterDroitsInterface();
         } else {
             alert("❌ Code PIN incorrect !");
             document.getElementById('txt-pin').value = "";
@@ -152,10 +163,10 @@
         document.getElementById('btn-relock').style.display = "none";
         document.getElementById('btn-csv-report').disabled = true;
         logSystem("🔒 Caisse verrouillée.");
-        ajusterDroitsInterface(); // Bloquer immédiatement tous les boutons d'action
+        ajusterDroitsInterface();
     }
 
-    // --- CAPTEUR INVISIBLE DE DOUCHETTE ---
+    // --- INTERCEPTION DE LA DOUCHETTE PC ---
     window.addEventListener('keydown', function(e) {
         const currentTime = Date.now();
         if (currentTime - lastKeyTime > 80) barcodeBuffer = ""; 
@@ -172,23 +183,6 @@
         }
     });
 
-    // --- REQUÊTE RÉSEAU DIRECTE (ZÉRO TRACE ORDINATEUR) ---
-    async function chargerDonneesFlux(numeroCodeBarre) {
-        numeroCodeBarre = numeroCodeBarre.trim();
-        carteSelectionnee = numeroCodeBarre;
-        
-        document.getElementById('lbl-numero').innerText = numeroCodeBarre;
-
-        const { data, error } = await supabase
-            .from('cartes_cadeaux')
-            .select('id, solde, statut')
-            .eq('id', numeroCodeBarre)
-            .single();
-
-        carteActuelleDonnees = data || null;
-        ajusterDroitsInterface();
-    }
-
-    // --- INTERFACE DYNAMIQUE SELON STATUT ET AUTHENTIFICATION ---
-    function ajusterDroitsInterface() {
-        const lblStatut = document.getElementById('lbl-statut');
+    // --- CAPTEUR SMARTPHONE (DÉCLENCHEMENT DE LA CAMÉRA) ---
+    function toggleCameraSmartphone() {
+        const zoneCam = document.getElementById('camera-reader');
