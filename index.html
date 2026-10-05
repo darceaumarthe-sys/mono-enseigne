@@ -119,8 +119,8 @@
 </div>
 
 <script>
-    // --- INTEGRATION DIRECTE DE VOS CLES SUPABASE ---
-    const SUPABASE_URL = "https://slcxfdpojazprtcapxvy.supabase.co"; 
+    // --- INTEGRATION SÉCURISÉE DE VOS CLÉS ---
+    const SUPABASE_URL = "https://supabase.co"; 
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsY3hmZHBvamF6cHJ0Y2FweHZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3Njc1NDksImV4cCI6MjEwNDM0MzU0OX0.A2vPONIHwC9I1StbFzh81mKm6N-nlWi4EZXcPS-cFcU";
     
     const CODE_PIN_SECRET = "1234"; 
@@ -130,9 +130,17 @@
     let supabase = null;
     try {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        document.getElementById('db-status').innerText = "🟢 Flux Cloud Supabase Synchrone";
+        // Changement immédiat du statut si la bibliothèque s'initialise correctement
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('db-status').innerText = "🟢 Flux Cloud Supabase Synchrone";
+            logSystem("Système prêt et connecté au Cloud.");
+        });
     } catch(e) {
-        document.getElementById('db-status').innerText = "🔴 Échec de liaison réseau";
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('db-status').innerText = "🔴 Échec de liaison réseau";
+            document.getElementById('db-status').style.backgroundColor = "#fee2e2";
+            document.getElementById('db-status').style.color = "#991b1b";
+        });
     }
 
     let carteSelectionnee = null;
@@ -149,7 +157,7 @@
             document.getElementById('btn-relock').style.display = "block";
             document.getElementById('btn-csv-report').disabled = false;
             document.getElementById('txt-pin').value = "";
-            logSystem("🔓 Accès autorisé.");
+            logSystem("🔓 Accès caissier autorisé.");
             if(carteSelectionnee) ajusterDroitsInterface();
         } else {
             alert("❌ Code PIN incorrect !");
@@ -172,17 +180,3 @@
         if (currentTime - lastKeyTime > 80) barcodeBuffer = ""; 
         lastKeyTime = currentTime;
 
-        if (e.key === 'Enter') {
-            if (barcodeBuffer.length > 2) {
-                chargerDonneesFlux(barcodeBuffer);
-                barcodeBuffer = "";
-            }
-            e.preventDefault();
-        } else if (e.key !== 'Shift') {
-            barcodeBuffer += e.key;
-        }
-    });
-
-    // --- CAPTEUR SMARTPHONE (DÉCLENCHEMENT DE LA CAMÉRA) ---
-    function toggleCameraSmartphone() {
-        const zoneCam = document.getElementById('camera-reader');
